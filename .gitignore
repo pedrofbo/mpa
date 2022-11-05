@@ -1,3 +1,5 @@
 # local repository environment
 .menv
 .vscode
+
+__pycache__
