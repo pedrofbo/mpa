@@ -120,16 +120,18 @@ def _register_pokemon(trainer: str, pokemon: dict) -> tuple:
     info = get_pokemon(pokemon["id"])
     trainer_doc = db.collection("trainers").document(trainer)
     pokemon_doc = trainer_doc.collection("pokemon").document(info["name"])
+    level = pokemon.get("level")
+    level = level if isinstance(level, int) else 1
     data = {
         "id": pokemon["id"],
         "name": info["name"],
         "nickname": pokemon["nickname"],
-        "level": 1,
+        "level": level,
         "caught_at": datetime.now(),
         "artwork": info["artwork"]
     }
     pokemon_doc.set(data)
-    return ("Pokemon registered successfully.\n", 200)
+    return (data, 200)
 
 
 @app.route("/trainers/<trainer>/pokemon/<pokemon>/level", methods=["POST"])
