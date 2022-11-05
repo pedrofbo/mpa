@@ -52,25 +52,30 @@ def register_trainer() -> tuple:
     content_type = request.headers.get("Content-Type")
     if content_type == "application/json":
         request_data = request.json
-        if request_data.get("name") is None:
-            return ("Json body must contain a 'name' key.\n", 400)
-        return _register_trainer(request_data["name"])
+        if (
+            request_data.get("name") is None or
+            request_data.get("image") is None
+        ):
+            return (
+                "Json body must contain the 'name' and 'image' keys.\n", 400)
+        return _register_trainer(request_data)
     else:
         return ("Content-Type is not of type application/json", 400)
 
 
-def _register_trainer(name: str) -> tuple:
+def _register_trainer(data: dict) -> tuple:
     db = firestore.client(firestore_app)
-    doc = db.collection("trainers").document(name)
+    doc = db.collection("trainers").document(data["name"])
     if not doc.get().exists:
         data = {
-            "name": name,
+            "name": data["name"],
+            "image": data["image"],
             "registered_at": datetime.now()
         }
         doc.set(data)
         return ("Trainer registered successfully.\n", 200)
     else:
-        return (f"Trainer '{name}' already registered.\n", 404)
+        return (f"Trainer '{data['name']}' already registered.\n", 404)
 
 
 @app.route("/trainers/<trainer>/pokemon")
@@ -118,6 +123,36 @@ def _register_pokemon(trainer: str, pokemon: dict) -> tuple:
     }
     pokemon_doc.set(data)
     return ("Pokemon registered successfully.\n", 200)
+
+
+@app.route("/trainers/<trainer>/pokemon/<pokemon>/level", methods=["POST"])
+def level_up_pokemon(trainer: str, pokemon: str) -> tuple:
+    content_type = request.headers.get("Content-Type")
+    if content_type == "application/json":
+        request_data = request.json
+        if type(request_data.get("levels")) not in [int, type(None)]:
+            return ("'levels' key must be an integer", 400)
+        levels = request_data.get("levels", 1)
+        return _level_up_pokemon(trainer, pokemon, levels)
+    else:
+        return ("Content-Type is not of type application/json", 400)
+
+
+def _level_up_pokemon(trainer: str, pokemon: str, levels: int) -> tuple:
+    db = firestore.client(firestore_app)
+    trainer_doc = db.collection("trainers").document(trainer)
+    if not trainer_doc.get().exists:
+        return (f"Trainer '{trainer}' not registered", 404)
+    pokemon_doc = trainer_doc.collection("pokemon").document(pokemon)
+    if not pokemon_doc.get().exists:
+        return (
+            f"Pokemon '{trainer}' not registered for trainer '{trainer}'.\n",
+            404
+        )
+    data = pokemon_doc.get().to_dict()
+    data["level"] = data["level"] + levels
+    pokemon_doc.set(data)
+    return (data, 200)
 
 
 if __name__ == "__main__":
