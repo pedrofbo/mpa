@@ -13,6 +13,7 @@ firestore_app = firebase_admin.initialize_app(
 
 
 def get_pokemon(number: str) -> dict:
+    """Retrieve info on the PokeAPI, given a pokemon ID number."""
     url = f"https://pokeapi.co/api/v2/pokemon/{number}"
     response = requests.get(url).json()
     pokemon = {
@@ -25,12 +26,14 @@ def get_pokemon(number: str) -> dict:
 
 @app.route("/pokemon/<number>")
 def get_pokemon_from_number(number: str) -> tuple:
+    """Given a Pokemon ID, retrieve info about it."""
     pokemon = get_pokemon(number)
     return (pokemon, 200)
 
 
 @app.route("/pokemon/random")
 def get_random_pokemon() -> tuple:
+    """Retrieve info for a random pokemon."""
     number = str(np.random.randint(1, 905))
     pokemon = get_pokemon(number)
     return (pokemon, 200)
@@ -38,6 +41,7 @@ def get_random_pokemon() -> tuple:
 
 @app.route("/trainers/<trainer>")
 def get_trainer(trainer: str) -> tuple:
+    """Retrieve info on Firestore for a given trainer."""
     db = firestore.client(firestore_app)
     doc = db.collection("trainers").document(trainer).get()
     if doc.exists:
@@ -49,6 +53,7 @@ def get_trainer(trainer: str) -> tuple:
 
 @app.route("/trainers", methods=["POST"])
 def register_trainer() -> tuple:
+    """Register given trainer on Firestore."""
     content_type = request.headers.get("Content-Type")
     if content_type == "application/json":
         request_data = request.json
@@ -80,6 +85,7 @@ def _register_trainer(data: dict) -> tuple:
 
 @app.route("/trainers/<trainer>/pokemon")
 def get_trainer_pokemon(trainer: str) -> tuple:
+    """Retrieve a list of pokemon on Firestore for a given trainer."""
     db = firestore.client(firestore_app)
     trainer_doc = db.collection("trainers").document(trainer)
     if not trainer_doc.get().exists:
@@ -95,6 +101,7 @@ def get_trainer_pokemon(trainer: str) -> tuple:
 
 @app.route("/trainers/<trainer>/pokemon", methods=["POST"])
 def register_pokemon(trainer: str) -> tuple:
+    """Register a pokemon for a trainer on Firestore."""
     content_type = request.headers.get("Content-Type")
     if content_type == "application/json":
         request_data = request.json
@@ -127,6 +134,7 @@ def _register_pokemon(trainer: str, pokemon: dict) -> tuple:
 
 @app.route("/trainers/<trainer>/pokemon/<pokemon>/level", methods=["POST"])
 def level_up_pokemon(trainer: str, pokemon: str) -> tuple:
+    """Level up a trainer's pokemon on Firestore."""
     content_type = request.headers.get("Content-Type")
     if content_type == "application/json":
         request_data = request.json
