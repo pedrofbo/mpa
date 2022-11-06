@@ -1,169 +1,167 @@
-from datetime import datetime
+from typing import Union
 
-import firebase_admin
-import numpy as np
-import requests
-from firebase_admin import firestore
-from flask import Flask, request
+import random
+import uvicorn
+from fastapi import FastAPI
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse, PlainTextResponse
 
-app = Flask(__name__)
-firestore_app = firebase_admin.initialize_app(
-    options={"projectId": "hotaru-gcp"}
-)
+import database as db
+import models
 
-
-def get_pokemon(number: str) -> dict:
-    """Retrieve info on the PokeAPI, given a pokemon ID number."""
-    url = f"https://pokeapi.co/api/v2/pokemon/{number}"
-    response = requests.get(url).json()
-    pokemon = {
-        "id": response["id"],
-        "name": response["name"],
-        "artwork": response["sprites"]["other"]["official-artwork"]["front_default"]  # noqa: E501
-    }
-    return pokemon
+app = FastAPI()
 
 
-@app.route("/pokemon/<number>")
-def get_pokemon_from_number(number: str) -> tuple:
-    """Given a Pokemon ID, retrieve info about it."""
-    pokemon = get_pokemon(number)
-    return (pokemon, 200)
-
-
-@app.route("/pokemon/random")
-def get_random_pokemon() -> tuple:
+@app.get("/pokemon/random", response_model=models.Pokemon)
+async def get_random_pokemon() -> JSONResponse:
     """Retrieve info for a random pokemon."""
-    number = str(np.random.randint(1, 905))
-    pokemon = get_pokemon(number)
-    return (pokemon, 200)
+    number = random.randrange(1, 906)
+    pokemon: models.Pokemon = db.get_pokemon(number)
+    return JSONResponse(pokemon.dict())
 
 
-@app.route("/trainers/<trainer>")
-def get_trainer(trainer: str) -> tuple:
-    """Retrieve info on Firestore for a given trainer."""
-    db = firestore.client(firestore_app)
-    doc = db.collection("trainers").document(trainer).get()
-    if doc.exists:
-        data = doc.to_dict()
-        return (data, 200)
-    else:
-        return (f"Trainer '{trainer}' not found.\n", 404)
+@app.get("/pokemon/{number}", response_model=models.Pokemon)
+async def get_pokemon_from_number(number: int) -> JSONResponse:
+    """Given a Pokemon ID, retrieve info about it.
+
+    Parameters
+    ----------
+    number : int
+        ID of the pokemon to retrieve.
+
+    Returns
+    -------
+    JSONResponse
+        Information about the fetched pokemon.
+    """
+    pokemon: models.Pokemon = db.get_pokemon(number)
+    return JSONResponse(pokemon.dict())
 
 
-@app.route("/trainers", methods=["POST"])
-def register_trainer() -> tuple:
-    """Register given trainer on Firestore."""
-    content_type = request.headers.get("Content-Type")
-    if content_type == "application/json":
-        request_data = request.json
-        if (
-            request_data.get("name") is None or
-            request_data.get("image") is None
-        ):
-            return (
-                "Json body must contain the 'name' and 'image' keys.\n", 400)
-        return _register_trainer(request_data)
-    else:
-        return ("Content-Type is not of type application/json", 400)
+@app.get("/trainers/{trainer}", response_model=models.Trainer)
+async def get_trainer(trainer: str) -> Union[JSONResponse, PlainTextResponse]:
+    """Retrieve info on Firestore for a given trainer.
+
+    Parameters
+    ----------
+    trainer : str
+        Name of the trainer.
+
+    Returns
+    -------
+    Union[JSONResponse, PlainTextResponse]
+        Information about the fetched trainer.
+    """
+    try:
+        trainer_data: models.Trainer = db.get_trainer(trainer)
+        json_data: dict = jsonable_encoder(trainer_data)
+        return JSONResponse(json_data)
+    except ValueError as e:
+        return PlainTextResponse(str(e), 404)
 
 
-def _register_trainer(data: dict) -> tuple:
-    db = firestore.client(firestore_app)
-    doc = db.collection("trainers").document(data["name"])
-    if not doc.get().exists:
-        data = {
-            "name": data["name"],
-            "image": data["image"],
-            "registered_at": datetime.now()
-        }
-        doc.set(data)
-        return ("Trainer registered successfully.\n", 200)
-    else:
-        return (f"Trainer '{data['name']}' already registered.\n", 404)
+@app.post("/trainers", response_model=models.Trainer)
+async def register_trainer(trainer: models.Trainer) -> Union[JSONResponse, PlainTextResponse]:  # noqa: E501
+    """Register given trainer.
+
+    Parameters
+    ----------
+    trainer : models.Trainer
+        Name of the trainer.
+
+    Returns
+    -------
+    Union[JSONResponse, PlainTextResponse]
+        Information about the registered trainer.
+    """
+    try:
+        trainer_data = db.register_trainer(trainer.name, trainer.image)
+        json_data: dict = jsonable_encoder(trainer_data)
+        return JSONResponse(json_data, 201)
+    except ValueError as e:
+        return PlainTextResponse(str(e), 400)
 
 
-@app.route("/trainers/<trainer>/pokemon")
-def get_trainer_pokemon(trainer: str) -> tuple:
-    """Retrieve a list of pokemon on Firestore for a given trainer."""
-    db = firestore.client(firestore_app)
-    trainer_doc = db.collection("trainers").document(trainer)
-    if not trainer_doc.get().exists:
-        return (f"Trainer '{trainer}' not found.\n", 404)
-    collection = trainer_doc.collection("pokemon")
-    docs = [doc.to_dict() for doc in collection.get()]
-    payload = {
-        "name": trainer,
-        "pokemon": docs
-    }
-    return (payload, 200)
+@app.get("/trainers/{trainer}/pokemon", response_model=models.TrainerPokemon)
+async def get_trainer_pokemon(trainer: str) -> Union[JSONResponse, PlainTextResponse]:  # noqa: E501
+    """Retrieve a list of pokemon for a given trainer.
+
+    Parameters
+    ----------
+    trainer : str
+        Name of the trainer.
+
+    Returns
+    -------
+    Union[JSONResponse, PlainTextResponse]
+        List of registered pokemon for the given trainer.
+    """
+    try:
+        pokemon_data: models.TrainerPokemon = db.get_trainer_pokemon(trainer)
+        json_data: dict = jsonable_encoder(pokemon_data)
+        return JSONResponse(json_data, 200)
+    except ValueError as e:
+        return PlainTextResponse(str(e), 404)
 
 
-@app.route("/trainers/<trainer>/pokemon", methods=["POST"])
-def register_pokemon(trainer: str) -> tuple:
-    """Register a pokemon for a trainer on Firestore."""
-    content_type = request.headers.get("Content-Type")
-    if content_type == "application/json":
-        request_data = request.json
-        if (
-            request_data.get("id") is None or
-            request_data.get("nickname") is None
-        ):
-            return ("Json body must contain the keys 'id' and 'nickname'.\n", 400)  # noqa: E501
-        return _register_pokemon(trainer, request_data)
-    else:
-        return ("Content-Type is not of type application/json", 400)
+@app.post("/trainers/{trainer}/pokemon", response_model=models.CaughtPokemon)
+async def register_pokemon(
+    trainer: str, pokemon: models.RegisterPokemon
+) -> Union[JSONResponse, PlainTextResponse]:
+    """Register a pokemon for a given trainer.
+
+    Parameters
+    ----------
+    trainer : str
+        Name of the trainer.
+    pokemon : models.RegisterPokemon
+        Information about the pokemon to register.
+
+    Returns
+    -------
+    Union[JSONResponse, PlainTextResponse]
+        Information about the registered pokemon.
+    """
+    try:
+        pokemon_data: models.CaughtPokemon = db.register_pokemon(
+            trainer, pokemon)
+        json_data: dict = jsonable_encoder(pokemon_data)
+        return JSONResponse(json_data, 201)
+    except ValueError as e:
+        return PlainTextResponse(str(e), 400)
 
 
-def _register_pokemon(trainer: str, pokemon: dict) -> tuple:
-    db = firestore.client(firestore_app)
-    info = get_pokemon(pokemon["id"])
-    trainer_doc = db.collection("trainers").document(trainer)
-    pokemon_doc = trainer_doc.collection("pokemon").document(info["name"])
-    level = pokemon.get("level")
-    level = level if isinstance(level, int) else 1
-    data = {
-        "id": pokemon["id"],
-        "name": info["name"],
-        "nickname": pokemon["nickname"],
-        "level": level,
-        "caught_at": datetime.now(),
-        "artwork": info["artwork"]
-    }
-    pokemon_doc.set(data)
-    return (data, 200)
+@app.post(
+    "/trainers/{trainer}/pokemon/{pokemon}/level",
+    response_model=models.CaughtPokemon
+)
+async def level_up_pokemon(
+    trainer: str, pokemon: str, levels: models.Level
+) -> Union[JSONResponse, PlainTextResponse]:
+    """Raise the level of a trainer's pokemon..
+
+    Parameters
+    ----------
+    trainer : str
+        Name of the trainer.
+    pokemon : str
+        Name of the pokemon.
+    levels : models.Level
+        Number of levels to raise.
+
+    Returns
+    -------
+    Union[JSONResponse, PlainTextResponse]
+        Information about the pokemon.
+    """
+    try:
+        pokemon_data: models.CaughtPokemon = db.level_up_pokemon(
+            trainer, pokemon, levels.levels)
+        json_data: dict = jsonable_encoder(pokemon_data)
+        return JSONResponse(json_data, 201)
+    except ValueError as e:
+        return PlainTextResponse(str(e), 400)
 
 
-@app.route("/trainers/<trainer>/pokemon/<pokemon>/level", methods=["POST"])
-def level_up_pokemon(trainer: str, pokemon: str) -> tuple:
-    """Level up a trainer's pokemon on Firestore."""
-    content_type = request.headers.get("Content-Type")
-    if content_type == "application/json":
-        request_data = request.json
-        if type(request_data.get("levels")) not in [int, type(None)]:
-            return ("'levels' key must be an integer", 400)
-        levels = request_data.get("levels", 1)
-        return _level_up_pokemon(trainer, pokemon, levels)
-    else:
-        return ("Content-Type is not of type application/json", 400)
-
-
-def _level_up_pokemon(trainer: str, pokemon: str, levels: int) -> tuple:
-    db = firestore.client(firestore_app)
-    trainer_doc = db.collection("trainers").document(trainer)
-    if not trainer_doc.get().exists:
-        return (f"Trainer '{trainer}' not registered", 404)
-    pokemon_doc = trainer_doc.collection("pokemon").document(pokemon)
-    if not pokemon_doc.get().exists:
-        return (
-            f"Pokemon '{trainer}' not registered for trainer '{trainer}'.\n",
-            404
-        )
-    data = pokemon_doc.get().to_dict()
-    data["level"] = data["level"] + levels
-    pokemon_doc.set(data)
-    return (data, 200)
-
-
-if __name__ == "__main__":
-    app.run(port="8080", debug=True)
+if __name__ == '__main__':
+    uvicorn.run('server:app', host='0.0.0.0', port=8080)
