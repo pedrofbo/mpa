@@ -14,7 +14,18 @@ db = firestore.client(firestore_app)
 
 
 def get_pokemon(number: int) -> models.Pokemon:
-    """Retrieve info on the PokeAPI, given a pokemon ID number."""
+    """Retrieve info on the PokeAPI, given a pokemon ID number.
+
+    Parameters
+    ----------
+    number : int
+        ID of a pokemon.
+
+    Returns
+    -------
+    models.Pokemon
+        Information about the pokemon retrived from the PokeAPI.
+    """
     url = f"https://pokeapi.co/api/v2/pokemon/{number}"
     response = requests.get(url).json()
     pokemon = models.Pokemon(
@@ -26,10 +37,39 @@ def get_pokemon(number: int) -> models.Pokemon:
 
 
 def get_trainer_document(trainer: str) -> DocumentSnapshot:
+    """Retrive document from Firestore with information about a trainer.
+
+    Parameters
+    ----------
+    trainer : str
+        Name of the trainer.
+
+    Returns
+    -------
+    google.cloud.firestore_v1.base_document.DocumentSnapshot
+        Snapshot of trainer document.
+    """
     return db.collection("trainers").document(trainer)
 
 
 def get_trainer(trainer: str) -> models.Trainer:
+    """Retrieve information about a trainer from Firestore.
+
+    Parameters
+    ----------
+    trainer : str
+        Name of the trainer.
+
+    Returns
+    -------
+    models.Trainer
+        Trainer information.
+
+    Raises
+    ------
+    ValueError
+        Trainer not found on Firestore.
+    """
     doc = get_trainer_document(trainer)
     if doc.get().exists:
         trainer_data = models.Trainer.parse_obj(doc.get().to_dict())
@@ -39,6 +79,25 @@ def get_trainer(trainer: str) -> models.Trainer:
 
 
 def register_trainer(name: str, image: str) -> models.Trainer:
+    """Register a given trainer on Firestore.
+
+    Parameters
+    ----------
+    name : str
+        Name of the trainer.
+    image : str
+        Trainer's image.
+
+    Returns
+    -------
+    models.Trainer
+        Information about the registered trainer.
+
+    Raises
+    ------
+    ValueError
+        Trainer already registered on Firestore.
+    """
     doc = get_trainer_document(name)
     if not doc.get().exists:
         data = {
@@ -54,6 +113,23 @@ def register_trainer(name: str, image: str) -> models.Trainer:
 
 
 def get_trainer_pokemon(trainer: str) -> models.TrainerPokemon:
+    """Retrieve a list of pokemon from the given trainer on Firestore.
+
+    Parameters
+    ----------
+    trainer : str
+        Name of the trainer.
+
+    Returns
+    -------
+    models.TrainerPokemon
+        List of pokemon owned by the trainer.
+
+    Raises
+    ------
+    ValueError
+        Trainer not found on Firestore.
+    """
     trainer_doc = get_trainer_document(trainer)
     if trainer_doc.get().exists:
         collection = trainer_doc.collection("pokemon")
@@ -69,6 +145,25 @@ def get_trainer_pokemon(trainer: str) -> models.TrainerPokemon:
 
 
 def register_pokemon(trainer: str, pokemon: models.RegisterPokemon) -> models.CaughtPokemon:  # noqa: E501
+    """Register a given pokemon to a given trainer on Firestore.
+
+    Parameters
+    ----------
+    trainer : str
+        Name of the trainer.
+    pokemon : models.RegisterPokemon
+        Information about the pokemon to be registered.
+
+    Returns
+    -------
+    models.CaughtPokemon
+        Information about the registered pokemon.
+
+    Raises
+    ------
+    ValueError
+        Trainer not found on Firestore.
+    """
     info: models.Pokemon = get_pokemon(pokemon.id)
     trainer_doc = get_trainer_document(trainer)
     if not trainer_doc.get().exists:
@@ -89,6 +184,29 @@ def register_pokemon(trainer: str, pokemon: models.RegisterPokemon) -> models.Ca
 
 def level_up_pokemon(trainer: str, pokemon: str,
                      levels: int) -> models.CaughtPokemon:
+    """Raise the level of a given pokemon by a given amount of levels.
+
+    Parameters
+    ----------
+    trainer : str
+        Name of the trainer that the given pokemon is registered under.
+    pokemon : str
+        Name of the pokemon.
+    levels : int
+        Levels to be raised.
+
+    Returns
+    -------
+    models.CaughtPokemon
+        Information about the pokemon.
+
+    Raises
+    ------
+    ValueError
+        Trainer not found on Firestore.
+    ValueError
+        Pokemon not found on Firestore under the given trainer.
+    """
     trainer_doc = get_trainer_document(trainer)
     if not trainer_doc.get().exists:
         raise ValueError(f"Trainer '{trainer}' not found.")

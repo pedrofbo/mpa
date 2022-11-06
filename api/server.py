@@ -22,14 +22,36 @@ async def get_random_pokemon() -> JSONResponse:
 
 @app.get("/pokemon/{number}", response_model=models.Pokemon)
 async def get_pokemon_from_number(number: int) -> JSONResponse:
-    """Given a Pokemon ID, retrieve info about it."""
+    """Given a Pokemon ID, retrieve info about it.
+
+    Parameters
+    ----------
+    number : int
+        ID of the pokemon to retrieve.
+
+    Returns
+    -------
+    JSONResponse
+        Information about the fetched pokemon.
+    """
     pokemon: models.Pokemon = db.get_pokemon(number)
     return JSONResponse(pokemon.dict())
 
 
 @app.get("/trainers/{trainer}", response_model=models.Trainer)
 async def get_trainer(trainer: str) -> Union[JSONResponse, PlainTextResponse]:
-    """Retrieve info on Firestore for a given trainer."""
+    """Retrieve info on Firestore for a given trainer.
+
+    Parameters
+    ----------
+    trainer : str
+        Name of the trainer.
+
+    Returns
+    -------
+    Union[JSONResponse, PlainTextResponse]
+        Information about the fetched trainer.
+    """
     try:
         trainer_data: models.Trainer = db.get_trainer(trainer)
         json_data: dict = jsonable_encoder(trainer_data)
@@ -40,7 +62,18 @@ async def get_trainer(trainer: str) -> Union[JSONResponse, PlainTextResponse]:
 
 @app.post("/trainers", response_model=models.Trainer)
 async def register_trainer(trainer: models.Trainer) -> Union[JSONResponse, PlainTextResponse]:  # noqa: E501
-    """Register given trainer on Firestore."""
+    """Register given trainer.
+
+    Parameters
+    ----------
+    trainer : models.Trainer
+        Name of the trainer.
+
+    Returns
+    -------
+    Union[JSONResponse, PlainTextResponse]
+        Information about the registered trainer.
+    """
     try:
         trainer_data = db.register_trainer(trainer.name, trainer.image)
         json_data: dict = jsonable_encoder(trainer_data)
@@ -50,8 +83,19 @@ async def register_trainer(trainer: models.Trainer) -> Union[JSONResponse, Plain
 
 
 @app.get("/trainers/{trainer}/pokemon", response_model=models.TrainerPokemon)
-def get_trainer_pokemon(trainer: str) -> tuple:
-    """Retrieve a list of pokemon on Firestore for a given trainer."""
+async def get_trainer_pokemon(trainer: str) -> Union[JSONResponse, PlainTextResponse]:  # noqa: E501
+    """Retrieve a list of pokemon for a given trainer.
+
+    Parameters
+    ----------
+    trainer : str
+        Name of the trainer.
+
+    Returns
+    -------
+    Union[JSONResponse, PlainTextResponse]
+        List of registered pokemon for the given trainer.
+    """
     try:
         pokemon_data: models.TrainerPokemon = db.get_trainer_pokemon(trainer)
         json_data: dict = jsonable_encoder(pokemon_data)
@@ -64,7 +108,20 @@ def get_trainer_pokemon(trainer: str) -> tuple:
 async def register_pokemon(
     trainer: str, pokemon: models.RegisterPokemon
 ) -> Union[JSONResponse, PlainTextResponse]:
-    """Register a pokemon for a trainer on Firestore."""
+    """Register a pokemon for a given trainer.
+
+    Parameters
+    ----------
+    trainer : str
+        Name of the trainer.
+    pokemon : models.RegisterPokemon
+        Information about the pokemon to register.
+
+    Returns
+    -------
+    Union[JSONResponse, PlainTextResponse]
+        Information about the registered pokemon.
+    """
     try:
         pokemon_data: models.CaughtPokemon = db.register_pokemon(
             trainer, pokemon)
@@ -78,10 +135,25 @@ async def register_pokemon(
     "/trainers/{trainer}/pokemon/{pokemon}/level",
     response_model=models.CaughtPokemon
 )
-def level_up_pokemon(
+async def level_up_pokemon(
     trainer: str, pokemon: str, levels: models.Level
 ) -> Union[JSONResponse, PlainTextResponse]:
-    """Level up a trainer's pokemon on Firestore."""
+    """Raise the level of a trainer's pokemon..
+
+    Parameters
+    ----------
+    trainer : str
+        Name of the trainer.
+    pokemon : str
+        Name of the pokemon.
+    levels : models.Level
+        Number of levels to raise.
+
+    Returns
+    -------
+    Union[JSONResponse, PlainTextResponse]
+        Information about the pokemon.
+    """
     try:
         pokemon_data: models.CaughtPokemon = db.level_up_pokemon(
             trainer, pokemon, levels.levels)
