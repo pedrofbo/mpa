@@ -213,7 +213,7 @@ def level_up_pokemon(trainer: str, pokemon: str,
     pokemon_doc = trainer_doc.collection("pokemon").document(pokemon)
     if not pokemon_doc.get().exists:
         raise ValueError(
-            f"Pokemon '{trainer}' not registered for trainer '{trainer}'.",
+            f"Pokemon '{pokemon}' not registered for trainer '{trainer}'.",
         )
     data = pokemon_doc.get().to_dict()
     data["level"] = data["level"] + levels
