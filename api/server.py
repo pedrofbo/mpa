@@ -8,11 +8,13 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 
 import database as db
 import models
+from kafka import kafka_logging
 
 app = FastAPI()
 
 
 @app.get("/pokemon/random", response_model=models.Pokemon)
+@kafka_logging("POKEMON__RANDOM")
 async def get_random_pokemon() -> JSONResponse:
     """Retrieve info for a random pokemon."""
     number = random.randrange(1, 906)
@@ -21,6 +23,7 @@ async def get_random_pokemon() -> JSONResponse:
 
 
 @app.get("/pokemon/{number}", response_model=models.Pokemon)
+@kafka_logging("POKEMON__ID")
 async def get_pokemon_from_number(number: int) -> JSONResponse:
     """Given a Pokemon ID, retrieve info about it.
 
@@ -39,6 +42,7 @@ async def get_pokemon_from_number(number: int) -> JSONResponse:
 
 
 @app.get("/trainers/{trainer}", response_model=models.Trainer)
+@kafka_logging("TRAINERS__NAME")
 async def get_trainer(trainer: str) -> Union[JSONResponse, PlainTextResponse]:
     """Retrieve info on Firestore for a given trainer.
 
@@ -61,6 +65,7 @@ async def get_trainer(trainer: str) -> Union[JSONResponse, PlainTextResponse]:
 
 
 @app.post("/trainers", response_model=models.Trainer)
+@kafka_logging("TRAINERS__REGISTER")
 async def register_trainer(trainer: models.Trainer) -> Union[JSONResponse, PlainTextResponse]:  # noqa: E501
     """Register given trainer.
 
@@ -83,6 +88,7 @@ async def register_trainer(trainer: models.Trainer) -> Union[JSONResponse, Plain
 
 
 @app.get("/trainers/{trainer}/pokemon", response_model=models.TrainerPokemon)
+@kafka_logging("TRAINERS__NAME__POKEMON")
 async def get_trainer_pokemon(trainer: str) -> Union[JSONResponse, PlainTextResponse]:  # noqa: E501
     """Retrieve a list of pokemon for a given trainer.
 
@@ -105,6 +111,7 @@ async def get_trainer_pokemon(trainer: str) -> Union[JSONResponse, PlainTextResp
 
 
 @app.post("/trainers/{trainer}/pokemon", response_model=models.CaughtPokemon)
+@kafka_logging("TRAINERS__NAME__POKEMON__REGISTER")
 async def register_pokemon(
     trainer: str, pokemon: models.RegisterPokemon
 ) -> Union[JSONResponse, PlainTextResponse]:
@@ -135,6 +142,7 @@ async def register_pokemon(
     "/trainers/{trainer}/pokemon/{pokemon}/level",
     response_model=models.CaughtPokemon
 )
+@kafka_logging("TRAINERS__NAME__POKEMON__LEVEL__REGISTER")
 async def level_up_pokemon(
     trainer: str, pokemon: str, levels: models.Level
 ) -> Union[JSONResponse, PlainTextResponse]:

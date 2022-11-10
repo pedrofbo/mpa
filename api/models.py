@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 
 class Pokemon(BaseModel):
-    id: str
+    id: int
     name: str
     artwork: str
 
