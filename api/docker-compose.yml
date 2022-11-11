@@ -1,0 +1,12 @@
+version: '3'
+
+services:
+  mpa_api:
+    image: mpa_api
+    build: ../api
+    volumes:
+      - ../api/serviceAccountKey.json:/usr/src/app/serviceAccountKey.json
+    environment:
+      KAFKA_ENDPOINT: broker:9092
+    ports:
+      - 8080:8080

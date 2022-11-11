@@ -1,15 +1,24 @@
+import os
 from datetime import datetime
 
 import firebase_admin
 import requests
-from firebase_admin import firestore
+from firebase_admin import credentials, firestore
 from google.cloud.firestore_v1.base_document import DocumentSnapshot
 
 import models
 
-firestore_app = firebase_admin.initialize_app(
-    options={"projectId": "hotaru-gcp"}
-)
+credentials_path = "serviceAccountKey.json"
+if os.path.exists(credentials_path):
+    credentials = credentials.Certificate(credentials_path)
+    firestore_app = firebase_admin.initialize_app(
+        credentials,
+        options={"projectId": "hotaru-gcp"}
+    )
+else:
+    firestore_app = firebase_admin.initialize_app(
+        options={"projectId": "hotaru-gcp"}
+    )
 db = firestore.client(firestore_app)
 
 

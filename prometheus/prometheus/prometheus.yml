@@ -1,0 +1,12 @@
+global:
+  scrape_interval:     10s
+  evaluation_interval: 10s
+  external_labels:
+    monitor: 'test'
+
+scrape_configs:
+  - job_name: 'mpa'
+    scrape_interval: 5s
+    static_configs:
+    - targets:
+      - 'metrics_server:8000'

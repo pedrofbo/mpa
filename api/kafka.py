@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import time
 from datetime import datetime
 from functools import wraps
@@ -21,7 +22,8 @@ _producer = None
 def _setup_producer():
     global _producer
     if _producer is None:
-        conf = {"bootstrap.servers": "localhost:9092"}
+        endpoint = os.environ.get("KAFKA_ENDPOINT", "localhost:19092")
+        conf = {"bootstrap.servers": endpoint}
         _producer = Producer(conf)
 
 
@@ -57,7 +59,7 @@ def kafka_logging(topic: str):
             message = {
                 "endpoint": "/" + topic.lower().replace("__", "/"),
                 "response_status": response.status_code,
-                "response": response.body.decode('utf-8'),
+                "response": json.loads(response.body.decode('utf-8')),
                 "start_time": datetime.fromtimestamp(start_time),
                 "elapsed_time": elapsed_time
             }
