@@ -25,10 +25,10 @@ services:
     ports:
       - 3000:3000
     volumes:
-      - grafana-volume:/etc/extra-config/grafana
+      - grafana-storage:/var/lib/grafana
     environment:
       - GF_SECURITY_ADMIN_USER=test
       - GF_SECURITY_ADMIN_PASSWORD=test
 
 volumes:
-  grafana-volume:
+  grafana-storage:
