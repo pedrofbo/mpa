@@ -1,3 +1,5 @@
+import { endpoint } from "../../backend_endpoint";
+
 interface Pokemon {
     id: number
     name: string
@@ -5,7 +7,7 @@ interface Pokemon {
 }
 
 async function getPokemon(id: string) {
-    const response = await fetch(`http://localhost:8080/pokemon/${id}`);
+    const response = await fetch(`${endpoint}/pokemon/${id}`);
     const data: Pokemon = await response.json();
     return data;
 }

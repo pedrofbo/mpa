@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { endpoint } from "../../backend_endpoint";
 
 interface Trainer {
     name: string
@@ -7,7 +8,7 @@ interface Trainer {
 }
 
 async function getTrainer(trainer: string): Promise<Trainer> {
-    const response = await fetch(`http://localhost:8080/trainers/${trainer}`);
+    const response = await fetch(`${endpoint}/trainers/${trainer}`);
     const data: Trainer = await response.json();
     return data;
 }
@@ -27,14 +28,14 @@ interface TrainerPokemon {
 }
 
 async function getTrainerPokemon(trainer: string): Promise<TrainerPokemon> {
-    const response = await fetch(`http://localhost:8080/trainers/${trainer}/pokemon`);
+    const response = await fetch(`${endpoint}/trainers/${trainer}/pokemon`);
     const data: TrainerPokemon = await response.json();
     console.log(data);
     return data;
 }
 
 async function getRandomPokemon(): Promise<Pokemon> {
-    const response = await fetch(`http://localhost:8080/pokemon/random`);
+    const response = await fetch(`${endpoint}/pokemon/random`);
     const data: Pokemon = await response.json();
     console.log(data);
     return data;
