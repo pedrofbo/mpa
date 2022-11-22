@@ -19,6 +19,8 @@ services:
     build: ../prometheus/prometheus
     ports:
       - 9090:9090
+    volumes:
+      - prometheus-storage:/prometheus
 
   grafana:
     image: grafana/grafana:9.1.0
@@ -31,4 +33,5 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=test
 
 volumes:
+  prometheus-storage:
   grafana-storage:
