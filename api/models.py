@@ -36,5 +36,9 @@ class RegisterPokemon(BaseModel):
     level: int = 1
 
 
+class RegisterPokemonResponse(CaughtPokemon):
+    trainer: str
+
+
 class Level(BaseModel):
     levels: int = 1

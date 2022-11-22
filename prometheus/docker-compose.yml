@@ -1,0 +1,37 @@
+version: '3'
+
+services:
+  metrics_server:
+    image: mpa_prometheus_metrics
+    build: ../prometheus
+    environment:
+      KAFKA_ENDPOINT: broker:9092
+      TOPICS_PATH: /usr/src/app/topics.txt
+    volumes:
+      - ../prometheus/kafka.py:/usr/src/app/kafka.py
+      - ../prometheus/metric_handlers:/usr/src/app/metric_handlers
+      - ../topics.txt:/usr/src/app/topics.txt
+    ports:
+      - 8000:8000
+
+  prometheus:
+    image: mpa_prometheus
+    build: ../prometheus/prometheus
+    ports:
+      - 9090:9090
+    volumes:
+      - prometheus-storage:/prometheus
+
+  grafana:
+    image: grafana/grafana:9.1.0
+    ports:
+      - 3000:3000
+    volumes:
+      - grafana-storage:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=test
+      - GF_SECURITY_ADMIN_PASSWORD=test
+
+volumes:
+  prometheus-storage:
+  grafana-storage:

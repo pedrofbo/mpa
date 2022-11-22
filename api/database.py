@@ -1,15 +1,24 @@
+import os
 from datetime import datetime
 
 import firebase_admin
 import requests
-from firebase_admin import firestore
+from firebase_admin import credentials, firestore
 from google.cloud.firestore_v1.base_document import DocumentSnapshot
 
 import models
 
-firestore_app = firebase_admin.initialize_app(
-    options={"projectId": "hotaru-gcp"}
-)
+credentials_path = "serviceAccountKey.json"
+if os.path.exists(credentials_path):
+    credentials = credentials.Certificate(credentials_path)
+    firestore_app = firebase_admin.initialize_app(
+        credentials,
+        options={"projectId": "hotaru-gcp"}
+    )
+else:
+    firestore_app = firebase_admin.initialize_app(
+        options={"projectId": "hotaru-gcp"}
+    )
 db = firestore.client(firestore_app)
 
 
@@ -144,7 +153,7 @@ def get_trainer_pokemon(trainer: str) -> models.TrainerPokemon:
         raise ValueError(f"Trainer '{trainer}' not found.")
 
 
-def register_pokemon(trainer: str, pokemon: models.RegisterPokemon) -> models.CaughtPokemon:  # noqa: E501
+def register_pokemon(trainer: str, pokemon: models.RegisterPokemon) -> models.RegisterPokemonResponse:  # noqa: E501
     """Register a given pokemon to a given trainer on Firestore.
 
     Parameters
@@ -178,12 +187,13 @@ def register_pokemon(trainer: str, pokemon: models.RegisterPokemon) -> models.Ca
         "artwork": info.artwork
     }
     pokemon_doc.set(data)
-    pokemon_data = models.CaughtPokemon.parse_obj(data)
+    data["trainer"] = trainer
+    pokemon_data = models.RegisterPokemonResponse.parse_obj(data)
     return pokemon_data
 
 
 def level_up_pokemon(trainer: str, pokemon: str,
-                     levels: int) -> models.CaughtPokemon:
+                     levels: int) -> models.RegisterPokemonResponse:
     """Raise the level of a given pokemon by a given amount of levels.
 
     Parameters
@@ -197,7 +207,7 @@ def level_up_pokemon(trainer: str, pokemon: str,
 
     Returns
     -------
-    models.CaughtPokemon
+    models.RegisterPokemonResponse
         Information about the pokemon.
 
     Raises
@@ -218,5 +228,6 @@ def level_up_pokemon(trainer: str, pokemon: str,
     data = pokemon_doc.get().to_dict()
     data["level"] = data["level"] + levels
     pokemon_doc.set(data)
-    pokemon_data = models.CaughtPokemon.parse_obj(data)
+    data["trainer"] = trainer
+    pokemon_data = models.RegisterPokemonResponse.parse_obj(data)
     return pokemon_data
