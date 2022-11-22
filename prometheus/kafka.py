@@ -6,7 +6,9 @@ import logging
 from confluent_kafka import Consumer, KafkaException
 from prometheus_client import start_http_server, Counter, Gauge
 
-from metric_handlers import pokemon__random
+from metric_handlers import (
+    pokemon__random, trainers__name__pokemon__name__level__register
+)
 
 # Logging setup
 logger = logging.getLogger(__name__)
@@ -26,25 +28,30 @@ topics: list = topics_file.strip().split("\n")
 
 counter = Counter(
     "mpa_requests_total",
-    "Request count for MPA",
-    ["endpoint", "status_code"])
+    "Request count for the MPA API",
+    ["endpoint", "request_type", "status_code"])
 
 gauge = Gauge(
     "mpa_request_response_time",
     "Response time for endpoints on the MPA API",
-    ["endpoint", "status_code"]
+    ["endpoint", "request_type", "status_code"]
 )
 
 
 def handle_message(message: dict):
     endpoint = message["endpoint"]
+    request_type = message["request_type"]
     status = message["response_status"]
-    counter.labels(endpoint=endpoint, status_code=status).inc()
+    counter.labels(endpoint=endpoint, request_type=request_type,
+                   status_code=status).inc()
     gauge.labels(
-        endpoint=endpoint, status_code=status).set(message["elapsed_time"])
+        endpoint=endpoint, request_type=request_type,
+        status_code=status).set(message["elapsed_time"])
 
     if endpoint == "/pokemon/random":
         pokemon__random.handler(message)
+    if endpoint == "/trainers/name/pokemon/name/level/register":
+        trainers__name__pokemon__name__level__register.handler(message)
 
 
 def consumer_loop(consumer, topics):
