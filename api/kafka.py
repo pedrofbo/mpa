@@ -48,7 +48,7 @@ def _push_message(message: dict, topic: str):
                      f'Error - {str(e)}')
 
 
-def kafka_logging(topic: str):
+def kafka_logging(topic: str, request_type: str = "GET"):
 
     def decorator(method):
         @wraps(method)
@@ -58,6 +58,7 @@ def kafka_logging(topic: str):
             elapsed_time = time.time() - start_time
             message = {
                 "endpoint": "/" + topic.lower().replace("__", "/"),
+                "request_type": request_type,
                 "response_status": response.status_code,
                 "response": json.loads(response.body.decode('utf-8')),
                 "start_time": datetime.fromtimestamp(start_time),

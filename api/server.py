@@ -1,10 +1,8 @@
-from typing import Union
-
 import random
 import uvicorn
 from fastapi import FastAPI
 from fastapi.encoders import jsonable_encoder
-from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi.responses import JSONResponse
 
 import database as db
 import models
@@ -37,13 +35,16 @@ async def get_pokemon_from_number(number: int) -> JSONResponse:
     JSONResponse
         Information about the fetched pokemon.
     """
-    pokemon: models.Pokemon = db.get_pokemon(number)
-    return JSONResponse(pokemon.dict())
+    try:
+        pokemon: models.Pokemon = db.get_pokemon(number)
+        return JSONResponse(pokemon.dict())
+    except Exception as e:
+        return _handle_error(e)
 
 
 @app.get("/trainers/{trainer}", response_model=models.Trainer)
 @kafka_logging("TRAINERS__NAME")
-async def get_trainer(trainer: str) -> Union[JSONResponse, PlainTextResponse]:
+async def get_trainer(trainer: str) -> JSONResponse:
     """Retrieve info on Firestore for a given trainer.
 
     Parameters
@@ -53,20 +54,20 @@ async def get_trainer(trainer: str) -> Union[JSONResponse, PlainTextResponse]:
 
     Returns
     -------
-    Union[JSONResponse, PlainTextResponse]
+    JSONResponse
         Information about the fetched trainer.
     """
     try:
         trainer_data: models.Trainer = db.get_trainer(trainer)
         json_data: dict = jsonable_encoder(trainer_data)
         return JSONResponse(json_data)
-    except ValueError as e:
-        return PlainTextResponse(str(e), 404)
+    except Exception as e:
+        return _handle_error(e)
 
 
 @app.post("/trainers", response_model=models.Trainer)
-@kafka_logging("TRAINERS__REGISTER")
-async def register_trainer(trainer: models.Trainer) -> Union[JSONResponse, PlainTextResponse]:  # noqa: E501
+@kafka_logging("TRAINERS__REGISTER", "POST")
+async def register_trainer(trainer: models.Trainer) -> JSONResponse:
     """Register given trainer.
 
     Parameters
@@ -76,20 +77,20 @@ async def register_trainer(trainer: models.Trainer) -> Union[JSONResponse, Plain
 
     Returns
     -------
-    Union[JSONResponse, PlainTextResponse]
+    JSONResponse
         Information about the registered trainer.
     """
     try:
         trainer_data = db.register_trainer(trainer.name, trainer.image)
         json_data: dict = jsonable_encoder(trainer_data)
         return JSONResponse(json_data, 201)
-    except ValueError as e:
-        return PlainTextResponse(str(e), 400)
+    except Exception as e:
+        return _handle_error(e)
 
 
 @app.get("/trainers/{trainer}/pokemon", response_model=models.TrainerPokemon)
 @kafka_logging("TRAINERS__NAME__POKEMON")
-async def get_trainer_pokemon(trainer: str) -> Union[JSONResponse, PlainTextResponse]:  # noqa: E501
+async def get_trainer_pokemon(trainer: str) -> JSONResponse:
     """Retrieve a list of pokemon for a given trainer.
 
     Parameters
@@ -99,22 +100,21 @@ async def get_trainer_pokemon(trainer: str) -> Union[JSONResponse, PlainTextResp
 
     Returns
     -------
-    Union[JSONResponse, PlainTextResponse]
+    JSONResponse
         List of registered pokemon for the given trainer.
     """
     try:
         pokemon_data: models.TrainerPokemon = db.get_trainer_pokemon(trainer)
         json_data: dict = jsonable_encoder(pokemon_data)
         return JSONResponse(json_data, 200)
-    except ValueError as e:
-        return PlainTextResponse(str(e), 404)
+    except Exception as e:
+        return _handle_error(e)
 
 
 @app.post("/trainers/{trainer}/pokemon", response_model=models.CaughtPokemon)
-@kafka_logging("TRAINERS__NAME__POKEMON__REGISTER")
-async def register_pokemon(
-    trainer: str, pokemon: models.RegisterPokemon
-) -> Union[JSONResponse, PlainTextResponse]:
+@kafka_logging("TRAINERS__NAME__POKEMON__REGISTER", "POST")
+async def register_pokemon(trainer: str,
+                           pokemon: models.RegisterPokemon) -> JSONResponse:
     """Register a pokemon for a given trainer.
 
     Parameters
@@ -126,7 +126,7 @@ async def register_pokemon(
 
     Returns
     -------
-    Union[JSONResponse, PlainTextResponse]
+    JSONResponse
         Information about the registered pokemon.
     """
     try:
@@ -134,18 +134,17 @@ async def register_pokemon(
             trainer, pokemon)
         json_data: dict = jsonable_encoder(pokemon_data)
         return JSONResponse(json_data, 201)
-    except ValueError as e:
-        return PlainTextResponse(str(e), 400)
+    except Exception as e:
+        return _handle_error(e)
 
 
 @app.post(
     "/trainers/{trainer}/pokemon/{pokemon}/level",
-    response_model=models.CaughtPokemon
+    response_model=models.RegisterPokemonResponse
 )
-@kafka_logging("TRAINERS__NAME__POKEMON__LEVEL__REGISTER")
-async def level_up_pokemon(
-    trainer: str, pokemon: str, levels: models.Level
-) -> Union[JSONResponse, PlainTextResponse]:
+@kafka_logging("TRAINERS__NAME__POKEMON__NAME__LEVEL__REGISTER", "POST")
+async def level_up_pokemon(trainer: str, pokemon: str,
+                           levels: models.Level) -> JSONResponse:
     """Raise the level of a trainer's pokemon..
 
     Parameters
@@ -159,16 +158,24 @@ async def level_up_pokemon(
 
     Returns
     -------
-    Union[JSONResponse, PlainTextResponse]
+    JSONResponse
         Information about the pokemon.
     """
     try:
-        pokemon_data: models.CaughtPokemon = db.level_up_pokemon(
+        pokemon_data: models.RegisterPokemonResponse = db.level_up_pokemon(
             trainer, pokemon, levels.levels)
         json_data: dict = jsonable_encoder(pokemon_data)
         return JSONResponse(json_data, 201)
-    except ValueError as e:
-        return PlainTextResponse(str(e), 400)
+    except Exception as e:
+        return _handle_error(e)
+
+
+def _handle_error(error: Exception) -> JSONResponse:
+    error_response = {
+        "error_type": type(error).__name__,
+        "error_message": str(error)
+    }
+    return JSONResponse(error_response, 404)
 
 
 if __name__ == '__main__':

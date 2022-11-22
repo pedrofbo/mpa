@@ -153,7 +153,7 @@ def get_trainer_pokemon(trainer: str) -> models.TrainerPokemon:
         raise ValueError(f"Trainer '{trainer}' not found.")
 
 
-def register_pokemon(trainer: str, pokemon: models.RegisterPokemon) -> models.CaughtPokemon:  # noqa: E501
+def register_pokemon(trainer: str, pokemon: models.RegisterPokemon) -> models.RegisterPokemonResponse:  # noqa: E501
     """Register a given pokemon to a given trainer on Firestore.
 
     Parameters
@@ -187,12 +187,13 @@ def register_pokemon(trainer: str, pokemon: models.RegisterPokemon) -> models.Ca
         "artwork": info.artwork
     }
     pokemon_doc.set(data)
-    pokemon_data = models.CaughtPokemon.parse_obj(data)
+    data["trainer"] = trainer
+    pokemon_data = models.RegisterPokemonResponse.parse_obj(data)
     return pokemon_data
 
 
 def level_up_pokemon(trainer: str, pokemon: str,
-                     levels: int) -> models.CaughtPokemon:
+                     levels: int) -> models.RegisterPokemonResponse:
     """Raise the level of a given pokemon by a given amount of levels.
 
     Parameters
@@ -206,7 +207,7 @@ def level_up_pokemon(trainer: str, pokemon: str,
 
     Returns
     -------
-    models.CaughtPokemon
+    models.RegisterPokemonResponse
         Information about the pokemon.
 
     Raises
@@ -227,5 +228,6 @@ def level_up_pokemon(trainer: str, pokemon: str,
     data = pokemon_doc.get().to_dict()
     data["level"] = data["level"] + levels
     pokemon_doc.set(data)
-    pokemon_data = models.CaughtPokemon.parse_obj(data)
+    data["trainer"] = trainer
+    pokemon_data = models.RegisterPokemonResponse.parse_obj(data)
     return pokemon_data
